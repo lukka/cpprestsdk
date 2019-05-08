@@ -1,0 +1,22 @@
+jobs:
+  - job: Windows_VS2019_Hosted
+    pool:
+      name: Hosted Windows 2019 with VS2019
+    steps:
+    - task: lucappa.cmake-ninja-vcpkg-tasks.d855c326-b1c0-4d6f-b1c7-440ade6835fb.run-vcpkg@0
+      displayName: 'Run vcpkg'
+      inputs:
+        vcpkgTriplet: 'x64-windows'
+        vcpkgArguments: 'zlib openssl boost-system boost-date-time boost-regex boost-interprocess websocketpp brotli'
+
+    - task: lucappa.cmake-ninja-vcpkg-tasks.f2b1ec7d-bc54-4cc8-b9ed-1bc7f37c9dc6.run-cmake@0
+      displayName: 'Run CMake and Ninja - CMakeLists.txt'
+      inputs:
+        cmakeListsOrSettingsJson: CMakeListsTxtAdvanced
+        cmakeListsTxtPath: CMakeLists.txt
+        useVcpkgToolchainFile: true
+        cmakeAppendedArgs: '-G Ninja -DCPPREST_EXCLUDE_BROTLI=OFF -DCMAKE_BUILD_TYPE=Release'
+    - script: |
+        cd $(Build.ArtifactStagingDirectory)/Release/Binaries/
+        test_runner.exe *test.dll
+      displayName: 'Run tests, release'
