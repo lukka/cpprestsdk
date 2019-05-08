@@ -1,0 +1,44 @@
+jobs:
+  - job: macos_10_14_hosted
+    pool:
+      vmImage: 'macOS-10.14'
+    variables:
+      system.debug: true
+
+    steps:
+
+    - checkout: self
+      submodules: recursive
+
+    - task: CacheBeta@0
+      displayName: Cache vcpkg artifacts
+      inputs:
+        key: $(Build.SourcesDirectory)/vcpkg_ports_unix.txt | $(Build.SourcesDirectory)/.git/modules/vcpkg/HEAD | "$(Agent.OS)"
+        path: '$(Build.SourcesDirectory)/vcpkg'
+
+    - script: |
+        brew install gcc@8
+        export CC=gcc-8
+        export CXX=g++-8
+        echo '##vso[task.setvariable variable=CC]gcc-8'
+        echo '##vso[task.setvariable variable=CXX]g++-8'
+
+    - task: lucappa.cmake-ninja-vcpkg-tasks.d855c326-b1c0-4d6f-b1c7-440ade6835fb.run-vcpkg@0
+      displayName: 'Run vcpkg'
+      inputs:
+        vcpkgTriplet: 'x64-osx'
+        vcpkgArguments: '@$(Build.SourcesDirectory)/vcpkg_ports_unix.txt'
+        vcpkgDirectory: $(Build.SourcesDirectory)/vcpkg
+
+    - task: lucappa.cmake-ninja-vcpkg-tasks.f2b1ec7d-bc54-4cc8-b9ed-1bc7f37c9dc6.run-cmake@0
+      displayName: 'Run CMake and Ninja - CMakeLists.txt'
+      inputs:
+        cmakeListsOrSettingsJson: CMakeListsTxtAdvanced
+        cmakeListsTxtPath: CMakeLists.txt
+        useVcpkgToolchainFile: true
+        cmakeAppendedArgs: '-G Ninja -DCMAKE_BUILD_TYPE=Release'
+
+    - script: |
+        cd $(Build.ArtifactStagingDirectory)/Release/Binaries/
+        ./test_runner *test.so
+      displayName: 'Run tests, release'
